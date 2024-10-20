@@ -9,7 +9,7 @@ import red.jackf.UpdateDependenciesTask
 
 plugins {
 	id("maven-publish")
-	id("fabric-loom") version "1.5-SNAPSHOT"
+	id("fabric-loom") version "1.7-SNAPSHOT"
 	id("com.github.breadmoirai.github-release") version "2.4.1"
 	id("org.ajoberstar.grgit") version "5.2.1"
 	id("me.modmuss50.mod-publish-plugin") version "0.3.3"
@@ -63,12 +63,20 @@ repositories {
 		}
 	}
 
+	maven {
+		name = "Nucleoid"
+		url = uri("https://maven.nucleoid.xyz/")
+		content {
+			includeGroup("eu.pb4")
+		}
+	}
+
 	// YACL
 	maven {
 		name = "Xander Maven"
 		url = uri("https://maven.isxander.dev/releases")
 		content {
-			includeGroup("dev.isxander.yacl")
+			includeGroupAndSubgroups("dev.isxander")
 			includeGroupAndSubgroups("org.quiltmc")
 		}
 	}
@@ -78,7 +86,7 @@ repositories {
 		name = "Xander Snapshot Maven"
 		url = uri("https://maven.isxander.dev/snapshots")
 		content {
-			includeGroup("dev.isxander.yacl")
+			includeGroupAndSubgroups("dev.isxander")
 			includeGroupAndSubgroups("org.quiltmc")
 		}
 	}
@@ -140,9 +148,6 @@ repositories {
 
 java {
 	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
 }
 
 loom {
@@ -179,7 +184,7 @@ dependencies {
 	include("red.jackf:whereisit:${properties["where-is-it_version"]}")
 
 	// Config
-	modImplementation("dev.isxander.yacl:yet-another-config-lib-fabric:${properties["yacl_version"]}") {
+	modImplementation("dev.isxander:yet-another-config-lib:${properties["yacl_version"]}") {
 		exclude(group = "com.terraformersmc", module = "modmenu")
 	}
 
@@ -216,6 +221,18 @@ dependencies {
 	modCompileOnly("maven.modrinth:jade:${properties["jade_version"]}")
 
 	modLocalRuntime("maven.modrinth:jade:${properties["jade_version"]}")
+
+	// Litematica
+	modCompileOnly("maven.modrinth:litematica:${properties["litematica_version"]}")
+	modCompileOnly("maven.modrinth:malilib:${properties["malilib_version"]}")
+
+	//modLocalRuntime("maven.modrinth:litematica:${properties["litematica_version"]}")
+	//modLocalRuntime("maven.modrinth:malilib:${properties["malilib_version"]}")
+
+	// Expanded Storage
+	modCompileOnly("maven.modrinth:expanded-storage:${properties["expandedstorage_version"]}")
+
+	//modLocalRuntime("maven.modrinth:expanded-storage:${properties["expandedstorage_version"]}")
 }
 
 tasks.withType<ProcessResources>().configureEach {
@@ -274,13 +291,17 @@ if (canPublish) {
 			val addonProp: String = properties["changelogHeaderAddon"]!!.toString()
 
 			if (addonProp.isNotBlank()) {
-				addonProp + "\n\n"
+				addonProp
 			} else {
-				""
+				null
 			}
 		} else {
-			""
+			null
 		}
+
+		val changelogFileText = rootProject.file("changelogs/${properties["mod_version"]}.md")
+			.takeIf { it.exists() }
+			?.readText()
 
 		generateChangelogTask = tasks.register<GenerateChangelogTask>("generateChangelog") {
 			this.lastTag.set(lastTag)
@@ -302,7 +323,7 @@ if (canPublish) {
             }
 
 			// Add a bundled block for each module version
-			prologue.set(changelogHeader + bundledText)
+			prologue.set(listOfNotNull(changelogHeader, changelogFileText, bundledText).joinToString(separator = "\n\n"))
 		}
 	}
 
